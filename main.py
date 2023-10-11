@@ -14,8 +14,20 @@ class TCP:
         self.dst_ip = dst_ip
         self.src_port = src_port
         self.dst_port = dst_port
-        self.connection = [0, False]
-        self.termination = [0, False]
+        self.start = [0, False]
+        self.end = [0, False]
+        self.packets = []
+
+    def packet_add(self, packet):
+        self.packets.append(packet)
+
+
+class UDP:
+    def __init__(self, num, src_ip, dst_ip, client_port):
+        self.num = num
+        self.src_ip = src_ip
+        self.dst_ip = dst_ip
+        self.client_port = client_port
         self.packets = []
 
     def packet_add(self, packet):
@@ -94,15 +106,6 @@ def node_creation(ip):
     return sender
 
 
-def comm_deletion(comm,reading_comms):
-    dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
-    if comm.connection is False or comm.termination is False:
-        list_of_partial_comms.append(dict_comm)
-    else:
-        list_of_complete_comms.append(dict_comm)
-    reading_comms.remove(comm)
-
-
 def packet_analyze(frame, index):
     packet = {}
 
@@ -123,9 +126,8 @@ def packet_analyze(frame, index):
         print_mac(packet, raw_frame)
         print_from_constatnts("ether_types", ether_type, packet, 'ether_type')
         if ether_type == 2048:
-            ihl = 0
-            if int(print_sequence(14, 1, raw_frame)) % 10 != 5:
-                ihl = 40
+            ihl = (int(print_sequence(14, 1, raw_frame)) % 10 * 4) - 20
+
             print_ip(packet, raw_frame, 26, 30, "IPv4")
             print_from_constatnts("ip_protocols", int(print_sequence(23, 1, raw_frame), 16), packet, 'protocol')
             protocol = int(print_sequence(23, 1, raw_frame), 16)
@@ -134,14 +136,14 @@ def packet_analyze(frame, index):
             else:
                 src = int(print_sequence(34 + ihl, 2, raw_frame), 16)
                 dst = int(print_sequence(36 + ihl, 2, raw_frame), 16)
-                flag = int(print_sequence(47 + ihl, 1, raw_frame), 16)
                 packet['src_port'] = src
                 packet['dst_port'] = dst
                 if protocol == 6:
-                    if flag == 24:
+                    flag = int(print_sequence(47 + ihl, 1, raw_frame), 16)
+                    if flag == 24 or flag == 25:
                         print_from_constatnts("tcp_ports", min(src, dst), packet, 'app_protocol')
-                    else:
-                        print_from_constatnts("flags", flag, packet, 'flag')
+
+                    print_from_constatnts("flags", flag, packet, 'flag')
                 elif protocol == 17:
                     print_from_constatnts("tcp_ports", min(src, dst), packet, 'app_protocol')
 
@@ -174,7 +176,7 @@ def packet_analyze(frame, index):
     return packet
 
 
-def uloha1_3(frames):
+def uloha1_all(frames):
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     data['packets'] = list_of_packets
@@ -196,20 +198,96 @@ def uloha1_3(frames):
             max_send_packets.append(node['node'])
 
 
-def connection(packet):
-    pass
+def tcp_deletion(comm, reading_comms):
+    dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
+    if comm.start[1] and comm.end[1]:
+        list_of_complete_comms.append(dict_comm)
+    else:
+        list_of_partial_comms.append(dict_comm)
+    reading_comms.remove(comm)
 
 
-def termination(packet):
-    pass
+def udp_deletion(comm, reading_comms):
+    dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
+    if comm.packets[-2]['len_frame_pcap'] < 558 and comm.packets[-1]['len_frame_pcap'] == 60:
+        list_of_complete_comms.append(dict_comm)
+    else:
+        list_of_partial_comms.append(dict_comm)
+    reading_comms.remove(comm)
 
 
-def uloha4e(frames, protocol_port):
+def check(comm, packet):
+    if (comm.src_ip == packet['src_ip'] and
+            comm.dst_ip == packet['dst_ip'] and
+            comm.src_port == packet['src_port'] and
+            comm.dst_port == packet['dst_port']):
+        return True
+    else:
+        return False
+
+
+def check_reversed(comm, packet):
+    if (comm.dst_ip == packet['src_ip'] and
+            comm.src_ip == packet['dst_ip'] and
+            comm.src_port == packet['dst_port'] and
+            comm.dst_port == packet['src_port']):
+        return True
+    else:
+        return False
+
+
+def tcp_establishment(comm, check_one, check_two):
+    pck = comm.packets[-1]
+    if comm.start[0] == 0 and pck['flag'] == "SYN" and check_one(comm, pck):
+        comm.start[0] = 1
+        return True
+    elif comm.start[0] == 1 and pck['flag'] == "SYN-ACK" and check_two(comm, pck):
+        comm.start[0] = 21
+        return True
+    elif comm.start[0] == 1 and pck['flag'] == "SYN" and check_two(comm, pck):
+        comm.start[0] = 22
+        return True
+    elif comm.start[0] == 22 and pck['flag'] == "ACK" and check_one(comm, pck):
+        comm.start[0] = 32
+        return True
+    elif comm.start[0] == 21 and pck['flag'] == "ACK" and check_one(comm, pck):
+        comm.start[1] = True
+        return True
+    elif comm.start[0] == 32 and pck['flag'] == "ACK" and check_two(comm, pck):
+        comm.start[1] = True
+        return True
+    return False
+
+
+def tcp_termination(comm, check_one, check_two):
+    pck = comm.packets[-1]
+    if comm.end[0] == 0 and (pck['flag'] == "FIN-ACK" or pck['flag'] == "FIN-PUSH-ACK") and check_one(comm, pck):
+        comm.end[0] = 1
+        return True
+    elif comm.end[0] == 1 and pck['flag'] == "ACK" and check_two(comm, pck):
+        comm.end[0] = 21
+        return True
+    elif comm.end[0] == 1 and (pck['flag'] == "FIN-ACK" or pck['flag'] == "FIN-PUSH-ACK") and check_two(comm, pck):
+        comm.end[0] = 22
+        return True
+    elif comm.end[0] == 21 and (pck['flag'] == "FIN-ACK" or pck['flag'] == "FIN-PUSH-ACK") and check_two(comm, pck):
+        comm.end[0] = 31
+        return True
+    elif comm.end[0] == 22 and pck['flag'] == "ACK" and check_one(comm, pck):
+        comm.end[0] = 32
+        return True
+    elif ((comm.end[0] == 31 and pck['flag'] == "ACK" and check_one(comm, pck)) or
+          (comm.end[0] == 32 and pck['flag'] == "ACK" and check_two(comm, pck)) or
+          pck['flag'] == "RST" and check_two(comm, pck)):
+        comm.end[1] = True
+        return True
+    return False
+
+
+def uloha4_tcp(frames, protocol_port):
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     print_from_constatnts("tcp_ports", protocol_port, data, 'filter_name')
-    data['complete_comms'] = list_of_complete_comms
-    data['partial_comms'] = list_of_partial_comms
     index = 1
     comms = 1
 
@@ -221,103 +299,89 @@ def uloha4e(frames, protocol_port):
             if packet['dst_port'] == protocol_port or packet['src_port'] == protocol_port:
                 skip = False
                 for comm in cr_comms:
-                    if ((comm.src_ip == packet['src_ip'] and
-                         comm.dst_ip == packet['dst_ip'] and
-                         comm.src_port == packet['src_port'] and
-                         comm.dst_port == packet['dst_port']) or
-                            (comm.dst_ip == packet['src_ip'] and
-                             comm.src_ip == packet['dst_ip'] and
-                             comm.src_port == packet['dst_port'] and
-                             comm.dst_port == packet['src_port'])):
+                    if check(comm, packet) or check_reversed(comm, packet):
                         comm.packet_add(packet)
 
-                        if comm.connection[1] is False:
-                            if (comm.connection[0] == 0 and
-                                    packet['flag'] == "SYN" and
-                                    comm.src_ip == packet['src_ip'] and
-                                    comm.dst_ip == packet['dst_ip'] and
-                                    comm.src_port == packet['src_port'] and
-                                    comm.dst_port == packet['dst_port']):
-                                comm.connection[0] = 1
-                            elif (comm.connection[0] == 1 and
-                                  packet['flag'] == "SYN-ACK" and
-                                  comm.dst_ip == packet['src_ip'] and
-                                  comm.src_ip == packet['dst_ip'] and
-                                  comm.src_port == packet['dst_port'] and
-                                  comm.dst_port == packet['src_port']):
-                                comm.connection[0] = 2
-                            elif (comm.connection[0] == 2 and
-                                    packet['flag'] == "ACK" and
-                                    comm.src_ip == packet['src_ip'] and
-                                    comm.dst_ip == packet['dst_ip'] and
-                                    comm.src_port == packet['src_port'] and
-                                    comm.dst_port == packet['dst_port']):
-                                comm.connection[1] = True
+                        if comm.start[1] is False:
+                            if not tcp_establishment(comm, check, check_reversed):
+                                tcp_establishment(comm, check_reversed, check)
 
-                        if comm.termination[1] is False:
-                            if (comm.termination[0] == 0 and
-                                    packet['flag'] == "FIN-ACK" and
-                                    comm.src_ip == packet['src_ip'] and
-                                    comm.dst_ip == packet['dst_ip'] and
-                                    comm.src_port == packet['src_port'] and
-                                    comm.dst_port == packet['dst_port']):
-                                comm.termination[0] = 1
-                            elif (comm.termination[0] == 1 and
-                                  packet['flag'] == "ACK" and
-                                  comm.dst_ip == packet['src_ip'] and
-                                  comm.src_ip == packet['dst_ip'] and
-                                  comm.src_port == packet['dst_port'] and
-                                  comm.dst_port == packet['src_port']):
-                                comm.termination[0] = 2
-                            elif (comm.termination[0] == 2 and
-                                    packet['flag'] == "FIN-ACK" and
-                                    comm.src_ip == packet['src_ip'] and
-                                    comm.dst_ip == packet['dst_ip'] and
-                                    comm.src_port == packet['src_port'] and
-                                    comm.dst_port == packet['dst_port']):
-                                comm.termination[0] = 1
-                            elif (comm.termination[0] == 3 and
-                                  packet['flag'] == "ACK" and
-                                  comm.dst_ip == packet['src_ip'] and
-                                  comm.src_ip == packet['dst_ip'] and
-                                  comm.src_port == packet['dst_port'] and
-                                  comm.dst_port == packet['src_port']):
-                                comm.termination[1] = True
-                                comm_deletion(comm, cr_comms)
+                        if comm.end[1] is False:
+                            if not tcp_termination(comm, check, check_reversed):
+                                tcp_termination(comm, check_reversed, check)
 
-                            skip = True
-                            break
+                        if comm.start[1] and comm.end[1]:
+                            tcp_deletion(comm, cr_comms)
+                        skip = True
+                        break
                 if skip:
                     continue
 
                 tcp_object = TCP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'], packet['dst_port'])
                 tcp_object.packet_add(packet)
 
-                if tcp_object.connection[0] == 0 and packet['flag'] == "SYN":
-                    tcp_object.connection[0] = 1
+                if tcp_object.start[0] == 0 and packet['flag'] == "SYN" and check(tcp_object, packet):
+                    tcp_object.start[0] = 1
 
                 cr_comms.append(tcp_object)
                 comms += 1
         except KeyError:
             continue
 
-    for comm in cr_comms:
-        comm_deletion(comm, cr_comms)
+    while len(cr_comms) != 0:
+        tcp_deletion(cr_comms[0], cr_comms)
+
+    if len(list_of_complete_comms) != 0:
+        data['complete_comms'] = list_of_complete_comms
+    if len(list_of_partial_comms) != 0:
+        data['partial_comms'] = list_of_partial_comms
 
 
-def uloha4f(frames, protocol_port):
+def uloha4_udp(frames, protocol_port):
+    data['name'] = "PKS2023/24"
+    data['pcap_name'] = inp + ".pcap"
+    print_from_constatnts("tcp_ports", protocol_port, data, 'filter_name')
+    index = 1
+    comms = 1
+
+    cr_comms = []
+    for frame in frames:
+        packet = packet_analyze(frame, index)
+        index += 1
+        try:
+            if packet['dst_port'] == protocol_port:
+                udp_object = UDP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'])
+                udp_object.packet_add(packet)
+                cr_comms.append(udp_object)
+                comms += 1
+                continue
+
+            for comm in cr_comms:
+                if comm.client_port == packet['src_port'] or comm.client_port == packet['dst_port']:
+                    comm.packet_add(packet)
+                    break
+
+        except KeyError:
+            continue
+
+    while len(cr_comms) != 0:
+        udp_deletion(cr_comms[0], cr_comms)
+
+    if len(list_of_complete_comms) != 0:
+        data['complete_comms'] = list_of_complete_comms
+    if len(list_of_partial_comms) != 0:
+        data['partial_comms'] = list_of_partial_comms
+
+
+def uloha4_icmp(frames):
     pass
 
 
-def uloha4g(frames):
+def uloha4_frag(frames):
     pass
 
 
-def uloha4i(frames):
-    pass
-
-
-def uloha4j(frames):
+def uloha4_arp(frames):
     pass
 
 
@@ -351,31 +415,31 @@ constants = database()
 
 while True:
     # inp = input("Zadaj pcap na rozbor: ")
-    inp = "trace-1"
+    inp = "eth-8"
     try:
         # pcap = rdpcap("pcap/" + inp + ".pcap")
-        pcap = rdpcap("pcap/trace-1.pcap")
+        pcap = rdpcap("pcap/eth-8.pcap")
         break
     except FileNotFoundError:
         continue
 
-print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA")
+print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | TFTP")
 inp2 = input("Zadaj filter: ").upper()
 
 if inp2 == "ALL":
-    uloha1_3(pcap)
+    uloha1_all(pcap)
     yaml_create(data, "result-all.yaml")
 elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTROL" or inp2 == "FTP-DATA":
-    uloha4e(pcap, dict_search(constants['tcp_ports'], inp2))
+    uloha4_tcp(pcap, dict_search(constants['tcp_ports'], inp2))
     yaml_create(data, "result-" + inp2.lower() + ".yaml")
-elif inp2 == "ICMP":
-    uloha4g(pcap)
-    yaml_create(data, "result-icmp.yaml")
+elif inp2 == "TFTP":
+    uloha4_udp(pcap, dict_search(constants['tcp_ports'], inp2))
+    yaml_create(data, "result-tftp.yaml")
 elif inp2 == "ARP":
-    uloha4i(pcap)
+    uloha4_arp(pcap)
     yaml_create(data, "result-arp.yaml")
 elif inp2 == "ICMP":
-    uloha4j(pcap)
+    uloha4_icmp(pcap)
     yaml_create(data, "result-frag.yaml")
 else:
     print("Invalid input")

@@ -47,6 +47,7 @@ tcp_ports:
   25: SMTP
   53: TDOMAIN
   67: DHCP
+  69: TFTP
   79: FINGER
   80: HTTP
   110: POP3
@@ -98,3 +99,5 @@ flags:
   17: FIN-ACK
   18: SYN-ACK
   20: RST-ACK
+  24: PUSH-ACK
+  25: FIN-PUSH-ACK
