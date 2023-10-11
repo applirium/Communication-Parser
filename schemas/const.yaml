@@ -91,3 +91,10 @@ icmp_codes:
   17: address Mask Request
   18: Address Mask Reply
   30: Traceroute
+flags:
+  2: SYN
+  4: RST
+  16: ACK
+  17: FIN-ACK
+  18: SYN-ACK
+  20: RST-ACK

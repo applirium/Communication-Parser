@@ -38,7 +38,7 @@ validators[Hexdump.tag] = Hexdump
 args_parser = argparse.ArgumentParser(description='Validate yaml output of the PKS analyzer.')
 args_parser.add_argument('-s', '--schema', nargs='?', default='./schemas/schema-all.yaml', \
 help='the path to schema')
-args_parser.add_argument('-d', '--data', nargs='?', default='./output/result.yaml', \
+args_parser.add_argument('-d', '--data', nargs='?', default='./output/result27.yaml', \
 help='the output analyzer')
 
 args = args_parser.parse_args()
