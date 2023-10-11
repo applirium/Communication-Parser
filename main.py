@@ -34,6 +34,19 @@ class UDP:
         self.packets.append(packet)
 
 
+class ICMP:
+    def __init__(self, num, src_ip, dst_ip, icmp_id, icmp_seq):
+        self.num = num
+        self.src_ip = src_ip
+        self.dst_ip = dst_ip
+        self.icmp_id = icmp_id
+        self.icmp_seq = icmp_seq
+        self.packets = []
+
+    def packet_add(self, packet):
+        self.packets.append(packet)
+
+
 def database():
     with open("schemas/const.yaml", "r") as file:
         return yaml.safe_load(file)
@@ -133,6 +146,8 @@ def packet_analyze(frame, index):
             protocol = int(print_sequence(23, 1, raw_frame), 16)
             if protocol == 1:
                 print_from_constatnts("icmp_codes", int(print_sequence(34, 1, raw_frame), 16), packet, 'icmp_type')
+                packet['icmp_id'] = int(print_sequence(38 + ihl, 2, raw_frame), 16)
+                packet['icmp_seq'] = int(print_sequence(40 + ihl, 2, raw_frame), 16)
             else:
                 src = int(print_sequence(34 + ihl, 2, raw_frame), 16)
                 dst = int(print_sequence(36 + ihl, 2, raw_frame), 16)
@@ -210,6 +225,15 @@ def tcp_deletion(comm, reading_comms):
 def udp_deletion(comm, reading_comms):
     dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
     if comm.packets[-2]['len_frame_pcap'] < 558 and comm.packets[-1]['len_frame_pcap'] == 60:
+        list_of_complete_comms.append(dict_comm)
+    else:
+        list_of_partial_comms.append(dict_comm)
+    reading_comms.remove(comm)
+
+
+def icmp_deletion(comm, reading_comms):
+    dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
+    if len(comm.packets) == 2:
         list_of_complete_comms.append(dict_comm)
     else:
         list_of_partial_comms.append(dict_comm)
@@ -374,11 +398,44 @@ def uloha4_udp(frames, protocol_port):
 
 
 def uloha4_icmp(frames):
-    pass
+    data['name'] = "PKS2023/24"
+    data['pcap_name'] = inp + ".pcap"
+    index = 1
+    comms = 1
 
+    cr_comms = []
+    for frame in frames:
+        packet = packet_analyze(frame, index)
+        index += 1
 
-def uloha4_frag(frames):
-    pass
+        try:
+            if packet['protocol'] == "ICMP":
+                skip = False
+                for comm in cr_comms:
+                    if (comm.dst_ip == packet['src_ip'] and comm.dst_ip == packet['src_ip'] and
+                            comm.icmp_id == packet['icmp_id'] and comm.icmp_seq == packet['icmp_seq']):
+                        comm.packet_add(packet)
+                        skip = True
+                        break
+
+                if skip:
+                    continue
+
+                icmp_object = ICMP(comms, packet['src_ip'], packet['dst_ip'], packet['icmp_id'], packet['icmp_seq'])
+                icmp_object.packet_add(packet)
+                cr_comms.append(icmp_object)
+                comms += 1
+
+        except KeyError:
+            continue
+
+    while len(cr_comms) != 0:
+        icmp_deletion(cr_comms[0], cr_comms)
+
+    if len(list_of_complete_comms) != 0:
+        data['complete_comms'] = list_of_complete_comms
+    if len(list_of_partial_comms) != 0:
+        data['partial_comms'] = list_of_partial_comms
 
 
 def uloha4_arp(frames):
@@ -415,15 +472,15 @@ constants = database()
 
 while True:
     # inp = input("Zadaj pcap na rozbor: ")
-    inp = "eth-8"
+    inp = "trace-26"
     try:
         # pcap = rdpcap("pcap/" + inp + ".pcap")
-        pcap = rdpcap("pcap/eth-8.pcap")
+        pcap = rdpcap("pcap/trace-26.pcap")
         break
     except FileNotFoundError:
         continue
 
-print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | TFTP")
+print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | TFTP | ICMP")
 inp2 = input("Zadaj filter: ").upper()
 
 if inp2 == "ALL":
@@ -435,11 +492,11 @@ elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTR
 elif inp2 == "TFTP":
     uloha4_udp(pcap, dict_search(constants['tcp_ports'], inp2))
     yaml_create(data, "result-tftp.yaml")
+elif inp2 == "ICMP":
+    uloha4_icmp(pcap)
+    yaml_create(data, "result-icmp.yaml")
 elif inp2 == "ARP":
     uloha4_arp(pcap)
     yaml_create(data, "result-arp.yaml")
-elif inp2 == "ICMP":
-    uloha4_icmp(pcap)
-    yaml_create(data, "result-frag.yaml")
 else:
     print("Invalid input")
