@@ -95,6 +95,7 @@ icmp_codes:
 flags:
   2: SYN
   4: RST
+  14: RST-ACK
   16: ACK
   17: FIN-ACK
   18: SYN-ACK
