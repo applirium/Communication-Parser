@@ -7,7 +7,7 @@ class LiteralStr(str):
     pass
 
 
-class Protocol:
+class Protocol:  # Base class for network protocols
     def __init__(self, num, src_ip, dst_ip):
         self.num = num
         self.src_ip = src_ip
@@ -18,7 +18,7 @@ class Protocol:
         self.packets.append(packet)
 
 
-class TCP(Protocol):
+class TCP(Protocol):  # Subclass for TCP protocol
     def __init__(self, num, src_ip, dst_ip, src_port, dst_port):
         super().__init__(num, src_ip, dst_ip)
         self.src_port = src_port
@@ -27,31 +27,31 @@ class TCP(Protocol):
         self.end = [0, False]
 
 
-class TFTP(Protocol):
+class TFTP(Protocol):  # Subclass for TFTP protocol
     def __init__(self, num, src_ip, dst_ip, client_port):
         super().__init__(num, src_ip, dst_ip)
         self.client_port = client_port
 
 
-class ICMP(Protocol):
+class ICMP(Protocol):  # Subclass for ICMP protocol
     def __init__(self, num, src_ip, dst_ip, icmp_id, icmp_seq):
         super().__init__(num, src_ip, dst_ip)
         self.icmp_id = icmp_id
         self.icmp_seq = icmp_seq
 
 
-def database():
+def database():  # Load a YAML database
     with open("schemas/const.yaml", "r") as file:
         return yaml.safe_load(file)
 
 
-def dict_search(dic, string):
+def dict_search(dic, string):  # Convert binary frame to hex format
     for key, value in dic.items():
         if value == string:
             return key
 
 
-def hex_convert(frame):
+def hex_convert(frame):  # Convert binary frame to hex format
     index = 0
     result = ""
     for i in range(len(frame)):
@@ -65,14 +65,14 @@ def hex_convert(frame):
     return result + "\n"
 
 
-def print_from_constatnts(specification, number, packet, packet_nameholder):
+def print_from_constatnts(specification, number, packet, packet_nameholder):  # Print information from constants
     try:
         packet[packet_nameholder] = constants[specification][number]
     except KeyError:
         pass
 
 
-def print_adress(start, number, index, frame, separator, nominator=16):
+def print_adress(start, number, index, frame, separator, nominator=16):  # Print formatted address
     if nominator == 16:
         result = ""
         for i in range(index):
@@ -85,16 +85,16 @@ def print_adress(start, number, index, frame, separator, nominator=16):
         return result[:-1]
 
 
-def print_sequence(start, number, frame):
+def print_sequence(start, number, frame):  # Print sequence of bytes
     return str(hexlify(frame[start: start + number]))[2:-1].upper()
 
 
-def print_mac(packet, raw_frame, offset=0):
+def print_mac(packet, raw_frame, offset=0):  # Print MAC addresses
     packet['src_mac'] = print_adress(6 + offset, 1, 6, raw_frame, ":")
     packet['dst_mac'] = print_adress(0 + offset, 1, 6, raw_frame, ":")
 
 
-def print_ip(packet, raw_frame, start, end, code):
+def print_ip(packet, raw_frame, start, end, code):  # Print IP addresses
     src = print_adress(start, 1, 4, raw_frame, ".", 10)
     packet['src_ip'] = src
     packet['dst_ip'] = print_adress(end, 1, 4, raw_frame, ".", 10)
@@ -107,19 +107,19 @@ def print_ip(packet, raw_frame, start, end, code):
         list_of_senders.append(node_creation(src))
 
 
-def node_creation(ip):
+def node_creation(ip):  # Create a new node in the sender list
     sender = {'node': ip, 'number_of_sent_packets': 1}
     return sender
 
 
-def packet_analyze(frame, index, extended=False, frag=False):
+def packet_analyze(frame, index, extended=False, frag=False):  # Analyze a packet
     packet = {}
 
     raw_frame = bytes(frame)
     packet['frame_number'] = index
     packet['len_frame_pcap'] = len(frame)
 
-    if len(frame) < 60:
+    if len(frame) < 60:  # Calculate the medium length based on the frame length
         medium = 64
     else:
         medium = len(frame) + 4
@@ -127,16 +127,18 @@ def packet_analyze(frame, index, extended=False, frag=False):
     packet['len_frame_medium'] = medium
     ether_type = int(print_sequence(12, 2, raw_frame), 16)
     print_sequence(12, 2, raw_frame)
-    if ether_type > 1500:
+
+    if ether_type > 1500:  # EtherType > 1500 indicates Ethernet II frame
         packet['frame_type'] = "ETHERNET II"
         print_mac(packet, raw_frame)
         print_from_constatnts("ether_types", ether_type, packet, 'ether_type')
-        if ether_type == 2048:
-            ihl = (int(print_sequence(14, 1, raw_frame)[-1], 16) * 4) - 20
 
+        if ether_type == 2048:  # EtherType 2048 indicates IPv4
+            ihl = (int(print_sequence(14, 1, raw_frame)[-1], 16) * 4) - 20
+            eth_length = int(print_sequence(16, 2, raw_frame), 16)
             print_ip(packet, raw_frame, 26, 30, "IPv4")
 
-            if (int(print_sequence(16, 2, raw_frame), 16) == 1500 or frag) and extended:
+            if (eth_length == 1500 or frag) and extended:  # Process fragmented packets
                 binary = int(format(int(print_sequence(20, 2, raw_frame), 16), '16b'))
                 frag = bool(binary // 10000000000000)
 
@@ -147,7 +149,7 @@ def packet_analyze(frame, index, extended=False, frag=False):
             print_from_constatnts("ip_protocols", int(print_sequence(23, 1, raw_frame), 16), packet, 'protocol')
             protocol = int(print_sequence(23, 1, raw_frame), 16)
 
-            if protocol == 1:
+            if protocol == 1:  # Process ICMP packets
                 print_from_constatnts("icmp_codes", int(print_sequence(34 + ihl, 1, raw_frame), 16), packet,
                                       'icmp_type')
                 if extended:
@@ -159,7 +161,7 @@ def packet_analyze(frame, index, extended=False, frag=False):
                 packet['src_port'] = src
                 packet['dst_port'] = dst
 
-                if protocol == 6:
+                if protocol == 6:  # Process TCP packets
                     flag = int(print_sequence(47 + ihl, 1, raw_frame), 16)
                     if flag == 24 or flag == 25:
                         print_from_constatnts("tcp_ports", min(src, dst), packet, 'app_protocol')
@@ -170,7 +172,7 @@ def packet_analyze(frame, index, extended=False, frag=False):
                 elif protocol == 17:
                     print_from_constatnts("tcp_ports", min(src, dst), packet, 'app_protocol')
 
-        elif ether_type == 2054:
+        elif ether_type == 2054:  # EtherType 2054 indicates ARP
             operation = "INVALID"
             if int(print_sequence(20, 2, raw_frame), 16) == 1:
                 operation = "REQUEST"
@@ -178,7 +180,7 @@ def packet_analyze(frame, index, extended=False, frag=False):
                 operation = "REPLY"
             packet['arp_opcode'] = operation
             print_ip(packet, raw_frame, 28, 38, "ARP")
-    else:
+    else:  # Frames with EtherType <= 1500
         offset = 0
         if print_sequence(14, 2, raw_frame) == "FFFF":
             packet['frame_type'] = "IEEE 802.3 RAW"
@@ -199,7 +201,7 @@ def packet_analyze(frame, index, extended=False, frag=False):
     return packet
 
 
-def uloha1_all(frames):
+def uloha1_all(frames):  # Analyze all frames
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     data['packets'] = list_of_packets
@@ -207,11 +209,11 @@ def uloha1_all(frames):
     data['max_send_packets_by'] = max_send_packets
     index = 1
 
-    for frame in frames:
+    for frame in frames:  # Analyze each frame and add the result to the list_of_packets
         list_of_packets.append(packet_analyze(frame, index))
         index += 1
 
-    maximum = 0
+    maximum = 0  # Initialize variable to keep track of ip senders who sent the most packets
     for node in list_of_senders:
         if node['number_of_sent_packets'] > maximum:
             maximum = node['number_of_sent_packets']
@@ -221,26 +223,26 @@ def uloha1_all(frames):
             max_send_packets.append(node['node'])
 
 
-def tcp_deletion(comm, reading_comms):
+def tcp_deletion(comm, reading_comms):  # Function to handle TCP communication deletion
     dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
-    if comm.start[1] and comm.end[1]:
+    if comm.start[1] and comm.end[1]:  # Communication starts and ends are present
         list_of_complete_comms.append(dict_comm)
-    else:
+    else:  # Communication is partial
         list_of_partial_comms.append(dict_comm)
     reading_comms.remove(comm)
 
 
-def udp_deletion(comm, reading_comms):
+def tftp_deletion(comm, reading_comms):  # Function to handle UDP communication deletion
     dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
     if (comm.packets[-2]['len_frame_pcap'] < comm.packets[1]['len_frame_pcap'] and
-            comm.packets[-1]['len_frame_pcap'] == 60):
+            comm.packets[-1]['len_frame_pcap'] == 60):  # UDP communication is complete
         list_of_complete_comms.append(dict_comm)
-    else:
+    else:  # UDP communication is partial
         list_of_partial_comms.append(dict_comm)
     reading_comms.remove(comm)
 
 
-def icmp_deletion(comm, reading_comms):
+def icmp_deletion(comm, reading_comms):  # Function to handle ICMP communication deletion
     dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
     openning = 0
     ending = 0
@@ -251,12 +253,12 @@ def icmp_deletion(comm, reading_comms):
         elif flag == "Echo Reply" or flag == "Time Exceeded":
             ending += 1
 
-        if packet['icmp_id'] == 0 and packet['icmp_seq'] == 0:
+        if packet['icmp_id'] == 0 and packet['icmp_seq'] == 0:  # Removing redundant information
             packet.pop('icmp_id')
             packet.pop('icmp_seq')
 
         try:
-            if packet['flags_mf']:
+            if packet['flags_mf']:  # Removing redundant information if icmp is fragmented
                 packet.pop('protocol')
                 packet.pop('icmp_type')
                 packet.pop('icmp_id')
@@ -264,15 +266,15 @@ def icmp_deletion(comm, reading_comms):
         except KeyError:
             continue
 
-    if openning == ending and openning != 0 and ending != 0:
+    if openning == ending and openning != 0 and ending != 0:  # ICMP communication is complete
         list_of_complete_comms.append(dict_comm)
-    else:
+    else:  # ICMP communication is partial
         list_of_partial_comms.append(dict_comm)
 
     reading_comms.remove(comm)
 
 
-def arp_deletion(comm, reading_comms):
+def arp_deletion(comm, reading_comms):  # Function to handle ARP communication deletion
     dict_comm = {'number_comm': comm.num, 'packets': comm.packets}
     request = 0
     reply = 0
@@ -283,15 +285,15 @@ def arp_deletion(comm, reading_comms):
         else:
             reply += 1
 
-    if request != 0 and reply != 0 and comm.packets[-1]['arp_opcode'] == "REPLY":
+    if request != 0 and reply != 0 and comm.packets[-1]['arp_opcode'] == "REPLY":  # ARP communication is complete
         list_of_complete_comms.append(dict_comm)
-    else:
+    else:  # ARP communication is partial
         list_of_partial_comms.append(dict_comm)
 
     reading_comms.remove(comm)
 
 
-def check(comm, packet):
+def check(comm, packet):  # Function to check if a packet matches a communication
     if (comm.src_ip == packet['src_ip'] and
             comm.dst_ip == packet['dst_ip'] and
             comm.src_port == packet['src_port'] and
@@ -301,7 +303,7 @@ def check(comm, packet):
         return False
 
 
-def check_reversed(comm, packet):
+def check_reversed(comm, packet):  # Function to check if a packet matches a communication (reversed direction)
     if (comm.dst_ip == packet['src_ip'] and
             comm.src_ip == packet['dst_ip'] and
             comm.src_port == packet['dst_port'] and
@@ -311,7 +313,7 @@ def check_reversed(comm, packet):
         return False
 
 
-def tcp_establishment(comm, check_one, check_two):
+def tcp_establishment(comm, check_one, check_two):  # Function to handle TCP connection establishment
     pck = comm.packets[-1]
     if comm.start[0] == 0 and pck['flag'] == "SYN" and check_one(comm, pck):
         comm.start[0] = 1
@@ -334,7 +336,7 @@ def tcp_establishment(comm, check_one, check_two):
     return False
 
 
-def tcp_termination(comm, check_one, check_two):
+def tcp_termination(comm, check_one, check_two):  # Function to handle TCP connection termination
     pck = comm.packets[-1]
     if comm.end[0] == 0 and (pck['flag'] == "FIN-ACK" or pck['flag'] == "FIN-PUSH-ACK") and check_one(comm, pck):
         comm.end[0] = 1
@@ -359,7 +361,17 @@ def tcp_termination(comm, check_one, check_two):
     return False
 
 
-def uloha4_tcp(frames, protocol_port):
+def uloha4_ending(cr_comms):
+    while len(cr_comms) != 0:
+        tcp_deletion(cr_comms[0], cr_comms)
+
+    if len(list_of_complete_comms) != 0:
+        data['complete_comms'] = list_of_complete_comms
+    if len(list_of_partial_comms) != 0:
+        data['partial_comms'] = list_of_partial_comms
+
+
+def uloha4_tcp(frames, protocol_port):  # Function to process TCP communications
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     print_from_constatnts("tcp_ports", protocol_port, data, 'filter_name')
@@ -371,27 +383,29 @@ def uloha4_tcp(frames, protocol_port):
         packet = packet_analyze(frame, index, True)
         index += 1
         try:
-            if packet['dst_port'] == protocol_port or packet['src_port'] == protocol_port:
+            if packet['dst_port'] == protocol_port or packet['src_port'] == protocol_port:  # Check if the packet matches the specified protocol port
                 skip = False
-                for comm in cr_comms:
+                for comm in cr_comms:  # Check if the packet belongs to an existing TCP communication
                     if check(comm, packet) or check_reversed(comm, packet):
-                        comm.packet_add(packet)
+                        comm.packet_add(packet)  # Add the packet to the communication
 
                         if comm.start[1] is False:
-                            if not tcp_establishment(comm, check, check_reversed):
+                            if not tcp_establishment(comm, check,
+                                                     check_reversed):  # Handle TCP connection establishment
                                 tcp_establishment(comm, check_reversed, check)
 
                         if comm.end[1] is False:
-                            if not tcp_termination(comm, check, check_reversed):
+                            if not tcp_termination(comm, check, check_reversed):  # Handle TCP connection termination
                                 tcp_termination(comm, check_reversed, check)
 
-                        if comm.start[1] and comm.end[1]:
+                        if comm.start[1] and comm.end[1]:  # If both start and end conditions are met, delete the communication from currently reading communications
                             tcp_deletion(comm, cr_comms)
                         skip = True
                         break
                 if skip:
                     continue
 
+                # Creation of a new TCP communication
                 tcp_object = TCP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'], packet['dst_port'])
                 tcp_object.packet_add(packet)
 
@@ -403,16 +417,10 @@ def uloha4_tcp(frames, protocol_port):
         except KeyError:
             continue
 
-    while len(cr_comms) != 0:
-        tcp_deletion(cr_comms[0], cr_comms)
-
-    if len(list_of_complete_comms) != 0:
-        data['complete_comms'] = list_of_complete_comms
-    if len(list_of_partial_comms) != 0:
-        data['partial_comms'] = list_of_partial_comms
+    uloha4_ending(cr_comms)  # Handle remaining communications
 
 
-def uloha4_udp(frames, protocol_port):
+def uloha4_tftp(frames, protocol_port):  # Function to process TFTP communications
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     print_from_constatnts("tcp_ports", protocol_port, data, 'filter_name')
@@ -420,18 +428,19 @@ def uloha4_udp(frames, protocol_port):
     comms = 1
 
     cr_comms = []
-    for frame in frames:
+    for frame in frames:  # Check if the packet belongs to an existing TFTP communication
         packet = packet_analyze(frame, index, True)
         index += 1
         try:
-            if packet['dst_port'] == protocol_port:
-                udp_object = TFTP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'])
-                udp_object.packet_add(packet)
-                cr_comms.append(udp_object)
+            if packet['dst_port'] == protocol_port:  # Check if packet matches specified protocol port (destination port)
+                # Creation of a new TFTP communication
+                tftp_object = TFTP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'])
+                tftp_object.packet_add(packet)
+                cr_comms.append(tftp_object)
                 comms += 1
                 continue
 
-            for comm in cr_comms:
+            for comm in cr_comms:  # Check if the packet belongs to an existing TFTP communication
                 if comm.client_port == packet['src_port'] or comm.client_port == packet['dst_port']:
                     hexa = packet['hexa_frame']
                     packet.pop('hexa_frame')
@@ -444,16 +453,10 @@ def uloha4_udp(frames, protocol_port):
         except KeyError:
             continue
 
-    while len(cr_comms) != 0:
-        udp_deletion(cr_comms[0], cr_comms)
-
-    if len(list_of_complete_comms) != 0:
-        data['complete_comms'] = list_of_complete_comms
-    if len(list_of_partial_comms) != 0:
-        data['partial_comms'] = list_of_partial_comms
+    uloha4_ending(cr_comms)  # Handle remaining communications
 
 
-def uloha4_icmp(frames):
+def uloha4_icmp(frames):  # Function to process ICMP communications
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     index = 1
@@ -462,7 +465,6 @@ def uloha4_icmp(frames):
     cr_comms = []
     frag = False
     for frame in frames:
-
         packet = packet_analyze(frame, index, True, frag)
         try:
             frag = packet['flags_mf']
@@ -471,9 +473,9 @@ def uloha4_icmp(frames):
 
         index += 1
         try:
-            if packet['protocol'] == "ICMP":
+            if packet['protocol'] == "ICMP":  # Check if the packet belongs to ICMP protocol
                 skip = False
-                for comm in cr_comms:
+                for comm in cr_comms:  # Check if the packet belongs to an existing ICMP communication
                     try:
                         if comm.packets[-1]['flags_mf']:
                             hexa = packet['hexa_frame']
@@ -491,13 +493,14 @@ def uloha4_icmp(frames):
                     except KeyError:
                         pass
 
-                    if (((comm.src_ip == packet['dst_ip'] and comm.dst_ip != packet['src_ip'] and
-                          packet['icmp_type'] == "Time Exceeded" and comm.packets[-1]['icmp_type'] == "Echo Request") or
+                    if (((comm.src_ip == packet['dst_ip'] and comm.dst_ip != packet['src_ip'] and packet[
+                        'icmp_type'] == "Time Exceeded" and comm.packets[-1]['icmp_type'] == "Echo Request") or
                          (comm.src_ip == packet['src_ip'] and comm.dst_ip == packet['dst_ip']) or
-                         (comm.src_ip == packet['dst_ip'] and comm.dst_ip == packet['src_ip'])) and
-                            (comm.icmp_id == packet['icmp_id'] or packet['icmp_id'] == 0) and
-                            (packet['icmp_type'] == "Echo Request" or packet['icmp_type'] == "Time Exceeded" or packet[
-                                'icmp_type'] == "Echo Reply")):
+                         (comm.src_ip == packet['dst_ip'] and comm.dst_ip == packet['src_ip'])) and (
+                            comm.icmp_id == packet['icmp_id'] or packet['icmp_id'] == 0) and (
+                            packet['icmp_type'] == "Echo Request" or
+                            packet['icmp_type'] == "Time Exceeded" or packet[
+                                'icmp_type'] == "Echo Reply")):  # Check if the packet belongs to an existing ICMP communication
                         comm.packet_add(packet)
                         skip = True
                         break
@@ -505,6 +508,7 @@ def uloha4_icmp(frames):
                 if skip:
                     continue
 
+                # Creation of a new ICMP communication
                 icmp_object = ICMP(comms, packet['src_ip'], packet['dst_ip'], packet['icmp_id'], packet['icmp_seq'])
                 icmp_object.packet_add(packet)
                 cr_comms.append(icmp_object)
@@ -513,16 +517,10 @@ def uloha4_icmp(frames):
         except KeyError:
             continue
 
-    while len(cr_comms) != 0:
-        icmp_deletion(cr_comms[0], cr_comms)
-
-    if len(list_of_complete_comms) != 0:
-        data['complete_comms'] = list_of_complete_comms
-    if len(list_of_partial_comms) != 0:
-        data['partial_comms'] = list_of_partial_comms
+    uloha4_ending(cr_comms)  # Handle remaining communications
 
 
-def uloha4_arp(frames):
+def uloha4_arp(frames):  # Function to process ARP communications
     data['name'] = "PKS2023/24"
     data['pcap_name'] = inp + ".pcap"
     index = 1
@@ -534,9 +532,9 @@ def uloha4_arp(frames):
         index += 1
 
         try:
-            if packet['ether_type'] == "ARP":
+            if packet['ether_type'] == "ARP":  # Check if the packet belongs to ARP protocol
                 skip = False
-                for comm in cr_comms:
+                for comm in cr_comms:  # Check if the packet belongs to an existing ARP communication
                     if (comm.src_ip == packet['dst_ip'] and comm.dst_ip == packet['src_ip']) or (
                             comm.dst_ip == packet['dst_ip'] and comm.src_ip == packet['src_ip']):
                         comm.packet_add(packet)
@@ -545,6 +543,7 @@ def uloha4_arp(frames):
                 if skip:
                     continue
 
+                # Creation of a new ARP communication
                 if packet['arp_opcode'] == "REQUEST":
                     arp_object = Protocol(comms, packet['src_ip'], packet['dst_ip'])
                 else:
@@ -557,17 +556,11 @@ def uloha4_arp(frames):
         except KeyError:
             continue
 
-    while len(cr_comms) != 0:
-        arp_deletion(cr_comms[0], cr_comms)
-
-    if len(list_of_complete_comms) != 0:
-        data['complete_comms'] = list_of_complete_comms
-    if len(list_of_partial_comms) != 0:
-        data['partial_comms'] = list_of_partial_comms
+    uloha4_ending(cr_comms)  # Handle remaining communications
 
 
-def yaml_create(obj, name):
-    def change_style(style, representer):
+def yaml_create(obj, name):  # Function to create a YAML file
+    def change_style(style, representer):  # Define a function to change the style of YAML output
         def new_representer(dumper, datas):
             scalar = representer(dumper, datas)
             scalar.style = style
@@ -578,6 +571,7 @@ def yaml_create(obj, name):
     represent_literal_str = change_style('|', yaml.representer.SafeRepresenter.represent_str)
     yaml.add_representer(LiteralStr, represent_literal_str)
 
+    # Write the YAML content to the specified file
     with open("output/" + name, "w") as file:
         yaml.dump(obj, file, sort_keys=False)
 
@@ -585,25 +579,20 @@ def yaml_create(obj, name):
 # TODO optimalizacia
 # TODO bug finding
 
-
 data = {}
-
 list_of_packets = []
 list_of_senders = []
 max_send_packets = []
-
 list_of_partial_comms = []
 list_of_complete_comms = []
+pcap = None  # Inicializing variables
 
-pcap = None
-constants = database()
+constants = database()  # Load constants from a database.
 
 while True:
-    # inp = input("Zadaj pcap na rozbor: ")
-    inp = "trace_ip_nad_20_B"
+    inp = input("Zadaj pcap na rozbor: ")
     try:
-        # pcap = rdpcap("pcap/" + inp + ".pcap")
-        pcap = rdpcap("pcap/trace_ip_nad_20_B.pcap")
+        pcap = rdpcap("pcap/" + inp + ".pcap")
         break
     except FileNotFoundError:
         continue
@@ -611,6 +600,7 @@ while True:
 print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | TFTP | ICMP | ARP")
 inp2 = input("Zadaj filter: ").upper()
 
+# Check the user's input and perform corresponding analysis.
 if inp2 == "ALL":
     uloha1_all(pcap)
     yaml_create(data, "result-all.yaml")
@@ -618,7 +608,7 @@ elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTR
     uloha4_tcp(pcap, dict_search(constants['tcp_ports'], inp2))
     yaml_create(data, "result-" + inp2.lower() + ".yaml")
 elif inp2 == "TFTP":
-    uloha4_udp(pcap, dict_search(constants['tcp_ports'], inp2))
+    uloha4_tftp(pcap, dict_search(constants['tcp_ports'], inp2))
     yaml_create(data, "result-tftp.yaml")
 elif inp2 == "ICMP":
     uloha4_icmp(pcap)
