@@ -27,7 +27,7 @@ class TCP(Protocol):
         self.end = [0, False]
 
 
-class UDP(Protocol):
+class TFTP(Protocol):
     def __init__(self, num, src_ip, dst_ip, client_port):
         super().__init__(num, src_ip, dst_ip)
         self.client_port = client_port
@@ -38,20 +38,6 @@ class ICMP(Protocol):
         super().__init__(num, src_ip, dst_ip)
         self.icmp_id = icmp_id
         self.icmp_seq = icmp_seq
-
-
-class ARP:
-    def __init__(self, num):
-        super().__init__(num)
-        self.src_mac = None
-        self.dst_mac = None
-
-    def src_mac_add(self,src_mac):
-        self.src_mac = src_mac
-
-    def dst_mac_add(self,dst_mac):
-        self.dst_mac = dst_mac
-
 
 
 def database():
@@ -126,7 +112,7 @@ def node_creation(ip):
     return sender
 
 
-def packet_analyze(frame, index):
+def packet_analyze(frame, index, extended=False, frag=False):
     packet = {}
 
     raw_frame = bytes(frame)
@@ -149,24 +135,38 @@ def packet_analyze(frame, index):
             ihl = (int(print_sequence(14, 1, raw_frame)[-1], 16) * 4) - 20
 
             print_ip(packet, raw_frame, 26, 30, "IPv4")
+
+            if (int(print_sequence(16, 2, raw_frame), 16) == 1500 or frag) and extended:
+                binary = int(format(int(print_sequence(20, 2, raw_frame), 16), '16b'))
+                frag = bool(binary // 10000000000000)
+
+                packet['id'] = int(print_sequence(18, 2, raw_frame), 16)
+                packet['flags_mf'] = frag
+                packet['frag_offset'] = int(str(binary % 10000000000000), 2) * 8
+
             print_from_constatnts("ip_protocols", int(print_sequence(23, 1, raw_frame), 16), packet, 'protocol')
             protocol = int(print_sequence(23, 1, raw_frame), 16)
+
             if protocol == 1:
                 print_from_constatnts("icmp_codes", int(print_sequence(34 + ihl, 1, raw_frame), 16), packet,
                                       'icmp_type')
-                packet['icmp_id'] = int(print_sequence(38 + ihl, 2, raw_frame), 16)
-                packet['icmp_seq'] = int(print_sequence(40 + ihl, 2, raw_frame), 16)
+                if extended:
+                    packet['icmp_id'] = int(print_sequence(38 + ihl, 2, raw_frame), 16)
+                    packet['icmp_seq'] = int(print_sequence(40 + ihl, 2, raw_frame), 16)
             else:
                 src = int(print_sequence(34 + ihl, 2, raw_frame), 16)
                 dst = int(print_sequence(36 + ihl, 2, raw_frame), 16)
                 packet['src_port'] = src
                 packet['dst_port'] = dst
+
                 if protocol == 6:
                     flag = int(print_sequence(47 + ihl, 1, raw_frame), 16)
                     if flag == 24 or flag == 25:
                         print_from_constatnts("tcp_ports", min(src, dst), packet, 'app_protocol')
 
-                    print_from_constatnts("flags", flag, packet, 'flag')
+                    if extended:
+                        print_from_constatnts("flags", flag, packet, 'flag')
+
                 elif protocol == 17:
                     print_from_constatnts("tcp_ports", min(src, dst), packet, 'app_protocol')
 
@@ -232,8 +232,8 @@ def tcp_deletion(comm, reading_comms):
 
 def udp_deletion(comm, reading_comms):
     dict_comm = {'number_comm': comm.num, 'src_comm': comm.src_ip, 'dst_comm': comm.dst_ip, 'packets': comm.packets}
-    if comm.packets[-2]['len_frame_pcap'] < comm.packets[1]['len_frame_pcap'] and comm.packets[-1][
-        'len_frame_pcap'] == 60:
+    if (comm.packets[-2]['len_frame_pcap'] < comm.packets[1]['len_frame_pcap'] and
+            comm.packets[-1]['len_frame_pcap'] == 60):
         list_of_complete_comms.append(dict_comm)
     else:
         list_of_partial_comms.append(dict_comm)
@@ -250,11 +250,40 @@ def icmp_deletion(comm, reading_comms):
             openning += 1
         elif flag == "Echo Reply" or flag == "Time Exceeded":
             ending += 1
+
         if packet['icmp_id'] == 0 and packet['icmp_seq'] == 0:
             packet.pop('icmp_id')
             packet.pop('icmp_seq')
 
+        try:
+            if packet['flags_mf']:
+                packet.pop('protocol')
+                packet.pop('icmp_type')
+                packet.pop('icmp_id')
+                packet.pop('icmp_seq')
+        except KeyError:
+            continue
+
     if openning == ending and openning != 0 and ending != 0:
+        list_of_complete_comms.append(dict_comm)
+    else:
+        list_of_partial_comms.append(dict_comm)
+
+    reading_comms.remove(comm)
+
+
+def arp_deletion(comm, reading_comms):
+    dict_comm = {'number_comm': comm.num, 'packets': comm.packets}
+    request = 0
+    reply = 0
+    for packet in comm.packets:
+        opcode = packet['arp_opcode']
+        if opcode == "REQUEST":
+            request += 1
+        else:
+            reply += 1
+
+    if request != 0 and reply != 0 and comm.packets[-1]['arp_opcode'] == "REPLY":
         list_of_complete_comms.append(dict_comm)
     else:
         list_of_partial_comms.append(dict_comm)
@@ -339,7 +368,7 @@ def uloha4_tcp(frames, protocol_port):
 
     cr_comms = []
     for frame in frames:
-        packet = packet_analyze(frame, index)
+        packet = packet_analyze(frame, index, True)
         index += 1
         try:
             if packet['dst_port'] == protocol_port or packet['src_port'] == protocol_port:
@@ -392,11 +421,11 @@ def uloha4_udp(frames, protocol_port):
 
     cr_comms = []
     for frame in frames:
-        packet = packet_analyze(frame, index)
+        packet = packet_analyze(frame, index, True)
         index += 1
         try:
             if packet['dst_port'] == protocol_port:
-                udp_object = UDP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'])
+                udp_object = TFTP(comms, packet['src_ip'], packet['dst_ip'], packet['src_port'])
                 udp_object.packet_add(packet)
                 cr_comms.append(udp_object)
                 comms += 1
@@ -431,14 +460,37 @@ def uloha4_icmp(frames):
     comms = 1
 
     cr_comms = []
+    frag = False
     for frame in frames:
-        packet = packet_analyze(frame, index)
-        index += 1
 
+        packet = packet_analyze(frame, index, True, frag)
+        try:
+            frag = packet['flags_mf']
+        except KeyError:
+            frag = False
+
+        index += 1
         try:
             if packet['protocol'] == "ICMP":
                 skip = False
                 for comm in cr_comms:
+                    try:
+                        if comm.packets[-1]['flags_mf']:
+                            hexa = packet['hexa_frame']
+                            packet.pop('icmp_id')
+                            packet.pop('icmp_seq')
+                            packet.pop('hexa_frame')
+
+                            packet['icmp_type'] = comm.packets[-1]['icmp_type']
+                            packet['icmp_id'] = comm.packets[-1]['icmp_id']
+                            packet['icmp_seq'] = comm.packets[-1]['icmp_seq']
+                            packet['hexa_frame'] = hexa
+                            comm.packet_add(packet)
+                            skip = True
+                            break
+                    except KeyError:
+                        pass
+
                     if (((comm.src_ip == packet['dst_ip'] and comm.dst_ip != packet['src_ip'] and
                           packet['icmp_type'] == "Time Exceeded" and comm.packets[-1]['icmp_type'] == "Echo Request") or
                          (comm.src_ip == packet['src_ip'] and comm.dst_ip == packet['dst_ip']) or
@@ -478,19 +530,26 @@ def uloha4_arp(frames):
 
     cr_comms = []
     for frame in frames:
-        packet = packet_analyze(frame, index)
+        packet = packet_analyze(frame, index, True)
         index += 1
 
         try:
-            if packet['protocol'] == "ARP":
+            if packet['ether_type'] == "ARP":
                 skip = False
                 for comm in cr_comms:
-                    pass
-
+                    if (comm.src_ip == packet['dst_ip'] and comm.dst_ip == packet['src_ip']) or (
+                            comm.dst_ip == packet['dst_ip'] and comm.src_ip == packet['src_ip']):
+                        comm.packet_add(packet)
+                        skip = True
+                        break
                 if skip:
                     continue
 
-                arp_object = ARP(comms, packet['src_ip'], packet['dst_ip'], packet['icmp_id'], packet['icmp_seq'])
+                if packet['arp_opcode'] == "REQUEST":
+                    arp_object = Protocol(comms, packet['src_ip'], packet['dst_ip'])
+                else:
+                    arp_object = Protocol(comms, packet['dst_ip'], packet['src_ip'])
+
                 arp_object.packet_add(packet)
                 cr_comms.append(arp_object)
                 comms += 1
@@ -499,7 +558,7 @@ def uloha4_arp(frames):
             continue
 
     while len(cr_comms) != 0:
-        icmp_deletion(cr_comms[0], cr_comms)
+        arp_deletion(cr_comms[0], cr_comms)
 
     if len(list_of_complete_comms) != 0:
         data['complete_comms'] = list_of_complete_comms
@@ -523,10 +582,9 @@ def yaml_create(obj, name):
         yaml.dump(obj, file, sort_keys=False)
 
 
+# TODO optimalizacia
+# TODO bug finding
 
-# TODO ARP
-# TODO FRAG
-# TODO icmp fix brania kompletnej kom iba, ked je req rep inak nekompletna
 
 data = {}
 
@@ -542,10 +600,10 @@ constants = database()
 
 while True:
     # inp = input("Zadaj pcap na rozbor: ")
-    inp = "trace-15"
+    inp = "trace_ip_nad_20_B"
     try:
         # pcap = rdpcap("pcap/" + inp + ".pcap")
-        pcap = rdpcap("pcap/trace-15.pcap")
+        pcap = rdpcap("pcap/trace_ip_nad_20_B.pcap")
         break
     except FileNotFoundError:
         continue
