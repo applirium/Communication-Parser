@@ -575,8 +575,6 @@ def yaml_create(obj, name):  # Function to create a YAML file
         yaml.dump(obj, file, sort_keys=False)
 
 
-# TODO bug finding
-
 data = {}
 list_of_packets = []
 list_of_senders = []
