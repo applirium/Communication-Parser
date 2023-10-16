@@ -45,7 +45,7 @@ tcp_ports:
   22: SSH
   23: TELNET
   25: SMTP
-  53: TDOMAIN
+  53: DNS
   67: DHCP
   69: TFTP
   79: FINGER

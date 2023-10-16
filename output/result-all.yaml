@@ -1,5 +1,5 @@
 name: PKS2023/24
-pcap_name: retard.pcap
+pcap_name: test.pcap
 packets:
 - frame_number: 1
   len_frame_pcap: 60
@@ -387,7 +387,7 @@ packets:
   protocol: UDP
   src_port: 4372
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 47 3C F9 00 00 80 11 AF 66 C0 A8 01 65 44 57
@@ -407,7 +407,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4372
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 7B 01 CD 40 00 32 11 F8 5E 44 57 47 E2 C0 A8
@@ -430,7 +430,7 @@ packets:
   protocol: UDP
   src_port: 4373
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 4D 3C FA 00 00 80 11 AF 5F C0 A8 01 65 44 57
@@ -450,7 +450,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4373
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 9D 21 33 40 00 32 11 D8 D6 44 57 47 E2 C0 A8
@@ -475,7 +475,7 @@ packets:
   protocol: UDP
   src_port: 4374
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 48 3C FB 00 00 80 11 AF 63 C0 A8 01 65 44 57
@@ -495,7 +495,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4374
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 48 21 AC 40 00 32 11 D8 B2 44 57 47 E2 C0 A8
@@ -515,7 +515,7 @@ packets:
   protocol: UDP
   src_port: 4375
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 39 3C FC 00 00 80 11 AF 71 C0 A8 01 65 44 57
@@ -534,7 +534,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4375
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 49 03 74 40 00 32 11 F6 E9 44 57 47 E2 C0 A8
@@ -962,7 +962,7 @@ packets:
   protocol: UDP
   src_port: 4376
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 47 3D 90 00 00 80 11 AE CF C0 A8 01 65 44 57
@@ -982,7 +982,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4376
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 7B 49 69 40 00 32 11 B0 C2 44 57 47 E2 C0 A8
@@ -1005,7 +1005,7 @@ packets:
   protocol: UDP
   src_port: 4377
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 49 3D 91 00 00 80 11 AE CC C0 A8 01 65 44 57
@@ -1025,7 +1025,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4377
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 99 4A 27 40 00 32 11 AF E6 44 57 47 E2 C0 A8
@@ -1050,7 +1050,7 @@ packets:
   protocol: UDP
   src_port: 4378
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 44 3D 92 00 00 80 11 AE D0 C0 A8 01 65 44 57
@@ -1070,7 +1070,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4378
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 44 4A 9E 40 00 32 11 AF C4 44 57 47 E2 C0 A8
@@ -1090,7 +1090,7 @@ packets:
   protocol: UDP
   src_port: 4379
   dst_port: 53
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 16 B6 F4 EB A8 00 08 74 4F 36 23 08 00 45 00
     00 35 3D 93 00 00 80 11 AE DE C0 A8 01 65 44 57
@@ -1109,7 +1109,7 @@ packets:
   protocol: UDP
   src_port: 53
   dst_port: 4379
-  app_protocol: TDOMAIN
+  app_protocol: DNS
   hexa_frame: |
     00 08 74 4F 36 23 00 16 B6 F4 EB A8 08 00 45 00
     00 A2 58 03 40 00 32 11 A2 01 44 57 47 E2 C0 A8

@@ -5647,8 +5647,6 @@ complete_comms:
       66 67
 partial_comms:
 - number_comm: 3
-  src_comm: 12.0.0.1
-  dst_comm: 12.0.0.5
   packets:
   - frame_number: 507
     len_frame_pcap: 70
@@ -5668,8 +5666,6 @@ partial_comms:
       00 00 7F 11 E9 BE 0C 00 00 05 0C 00 00 01 05 E6
       C2 FD 02 0C E6 74
 - number_comm: 4
-  src_comm: 12.0.0.1
-  dst_comm: 12.0.0.5
   packets:
   - frame_number: 515
     len_frame_pcap: 70

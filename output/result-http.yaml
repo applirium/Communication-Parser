@@ -3266,8 +3266,6 @@ complete_comms:
       1A 4C 70 A1 00 00 00 00 00 00 00 00
 partial_comms:
 - number_comm: 1
-  src_comm: 72.14.211.99
-  dst_comm: 192.168.1.101
   packets:
   - frame_number: 51
     len_frame_pcap: 60
@@ -3338,8 +3336,6 @@ partial_comms:
       01 65 00 50 10 CB D6 31 0D 61 EA F1 F0 5A 50 10
       1F FE E2 5C 00 00 00 00 00 00 00 00
 - number_comm: 5
-  src_comm: 173.194.70.101
-  dst_comm: 192.168.1.33
   packets:
   - frame_number: 524
     len_frame_pcap: 60
@@ -3410,8 +3406,6 @@ partial_comms:
       01 21 00 50 12 12 9A 88 A4 34 00 00 00 00 50 04
       00 00 A8 D0 00 00 00 00 00 00 00 00
 - number_comm: 11
-  src_comm: 192.168.1.33
-  dst_comm: 173.194.70.101
   packets:
   - frame_number: 611
     len_frame_pcap: 62

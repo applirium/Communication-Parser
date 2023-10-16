@@ -183,7 +183,7 @@ def packet_analyze(frame, index, extended=False, frag=False):  # Analyze a packe
             packet['frame_type'] = "IEEE 802.3 RAW"
             print_mac(packet, raw_frame)
 
-        elif print_sequence(14, 1, raw_frame) == "AA" or print_sequence(0, 4, raw_frame) == "01000c00":
+        elif print_sequence(14, 1, raw_frame) == "AA" or print_sequence(0, 6, raw_frame) == "01000c000000":
             if print_sequence(40, 1, raw_frame) == "AA":
                 offset = 26
             packet['frame_type'] = "IEEE 802.3 LLC & SNAP"
@@ -301,19 +301,16 @@ def uloha4_tcp(frames, protocol_port):  # Function to process TCP communications
         return False
 
     def tcp_deletion(communication, reading_comms):  # Function to handle TCP communication deletion
-        dict_comm = {'number_comm': communication.num, 'src_comm': communication.src_ip,
-                     'dst_comm': communication.dst_ip, 'packets': communication.packets}
-
-        for packet in communication.packets:
+        for cr_packet in communication.packets:
             try:
-                packet.pop('flag')
+                cr_packet.pop('flag')
             except KeyError:
                 pass
 
         if communication.start[1] and communication.end[1]:  # Communication starts and ends are present
-            list_of_complete_comms.append(dict_comm)
+            list_of_complete_comms.append({'number_comm': communication.num, 'src_comm': communication.src_ip, 'dst_comm': communication.dst_ip, 'packets': communication.packets})
         else:  # Communication is partial
-            list_of_partial_comms.append(dict_comm)
+            list_of_partial_comms.append({'number_comm': communication.num, 'packets': communication.packets})
         reading_comms.remove(communication)
 
     data['name'] = "PKS2023/24"
@@ -327,8 +324,7 @@ def uloha4_tcp(frames, protocol_port):  # Function to process TCP communications
         packet = packet_analyze(frame, index, True)
         index += 1
         try:
-            if packet['dst_port'] == protocol_port or packet[
-                'src_port'] == protocol_port:  # Check if the packet matches the specified protocol port
+            if packet['dst_port'] == protocol_port or packet['src_port'] == protocol_port:  # Check if the packet matches the specified protocol port
                 skip = False
                 for comm in cr_comms:  # Check if the packet belongs to an existing TCP communication
                     if check(comm, packet) or check_reversed(comm, packet):
@@ -343,8 +339,7 @@ def uloha4_tcp(frames, protocol_port):  # Function to process TCP communications
                             if not tcp_termination(comm, check, check_reversed):  # Handle TCP connection termination
                                 tcp_termination(comm, check_reversed, check)
 
-                        if comm.start[1] and comm.end[
-                            1]:  # If both start and end conditions are met, delete the communication from currently reading communications
+                        if comm.start[1] and comm.end[1]:  # If both start and end conditions are met, delete the communication from currently reading communications
                             tcp_deletion(comm, cr_comms)
                         skip = True
                         break
@@ -368,13 +363,11 @@ def uloha4_tcp(frames, protocol_port):  # Function to process TCP communications
 
 def uloha4_tftp(frames, protocol_port):  # Function to process TFTP communications
     def tftp_deletion(communication, reading_comms):  # Function to handle UDP communication deletion
-        dict_comm = {'number_comm': communication.num, 'src_comm': communication.src_ip,
-                     'dst_comm': communication.dst_ip, 'packets': communication.packets}
         if ((communication.packets[-2]['len_frame_pcap'] < communication.data_size or communication.data_size == 0) and
                 (communication.packets[-1]['len_frame_pcap'] == 60 or communication.packets[-1]['len_frame_pcap'] == 46)):  # UDP communication is complete
-            list_of_complete_comms.append(dict_comm)
+            list_of_complete_comms.append({'number_comm': communication.num, 'src_comm': communication.src_ip, 'dst_comm': communication.dst_ip, 'packets': communication.packets})
         else:  # UDP communication is partial
-            list_of_partial_comms.append(dict_comm)
+            list_of_partial_comms.append({'number_comm': communication.num, 'packets': communication.packets})
         reading_comms.remove(communication)
 
     data['name'] = "PKS2023/24"
@@ -417,8 +410,6 @@ def uloha4_tftp(frames, protocol_port):  # Function to process TFTP communicatio
 
 def uloha4_icmp(frames):  # Function to process ICMP communications
     def icmp_deletion(communication, reading_comms):  # Function to handle ICMP communication deletion
-        dict_comm = {'number_comm': communication.num, 'src_comm': communication.src_ip,
-                     'dst_comm': communication.dst_ip, 'packets': communication.packets}
         openning = 0
         ending = 0
         for cr_packet in communication.packets:
@@ -442,9 +433,9 @@ def uloha4_icmp(frames):  # Function to process ICMP communications
                 continue
 
         if openning == ending and openning != 0 and ending != 0:  # ICMP communication is complete
-            list_of_complete_comms.append(dict_comm)
+            list_of_complete_comms.append({'number_comm': communication.num, 'src_comm': communication.src_ip, 'dst_comm': communication.dst_ip, 'packets': communication.packets})
         else:  # ICMP communication is partial
-            list_of_partial_comms.append(dict_comm)
+            list_of_partial_comms.append({'number_comm': communication.num, 'packets': communication.packets})
 
         reading_comms.remove(communication)
 
@@ -513,7 +504,6 @@ def uloha4_icmp(frames):  # Function to process ICMP communications
 
 def uloha4_arp(frames):  # Function to process ARP communications
     def arp_deletion(communication, reading_comms):  # Function to handle ARP communication deletion
-        dict_comm = {'number_comm': communication.num, 'packets': communication.packets}
         request = 0
         reply = 0
         for cr_packet in communication.packets:
@@ -523,11 +513,10 @@ def uloha4_arp(frames):  # Function to process ARP communications
             else:
                 reply += 1
 
-        if request != 0 and reply != 0 and communication.packets[-1][
-            'arp_opcode'] == "REPLY":  # ARP communication is complete
-            list_of_complete_comms.append(dict_comm)
+        if request != 0 and reply != 0 and communication.packets[-1]['arp_opcode'] == "REPLY":  # ARP communication is complete
+            list_of_complete_comms.append({'number_comm': communication.num, 'packets': communication.packets})
         else:  # ARP communication is partial
-            list_of_partial_comms.append(dict_comm)
+            list_of_partial_comms.append({'number_comm': communication.num, 'packets': communication.packets})
 
         reading_comms.remove(communication)
 
@@ -597,6 +586,7 @@ list_of_complete_comms = []
 pcap = None  # Inicializing variables
 
 constants = database()  # Load constants from a database.
+print("Packet analyzer\nAuthor: Lukáš Štefančík")
 
 while True:
     inp = input("Zadaj pcap na rozbor: ")

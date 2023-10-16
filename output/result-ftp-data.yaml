@@ -453,8 +453,6 @@ complete_comms:
       E9 7D
 partial_comms:
 - number_comm: 3
-  src_comm: 193.0.6.140
-  dst_comm: 192.168.1.33
   packets:
   - frame_number: 454
     len_frame_pcap: 300
@@ -490,8 +488,6 @@ partial_comms:
       73 2E 78 6D 6C 0D 0A 74 65 73 74 2D 74 72 61 66
       66 69 63 0D 0A 74 6F 6F 6C 73 0D 0A
 - number_comm: 4
-  src_comm: 193.0.6.140
-  dst_comm: 192.168.1.33
   packets:
   - frame_number: 462
     len_frame_pcap: 1434
