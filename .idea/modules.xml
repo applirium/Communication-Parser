@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Wireshark.iml" filepath="$PROJECT_DIR$/.idea/Wireshark.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/BabyShark.iml" filepath="$PROJECT_DIR$/.idea/BabyShark.iml" />
     </modules>
   </component>
 </project>

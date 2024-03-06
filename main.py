@@ -592,16 +592,17 @@ while True:
         pcap = rdpcap("pcap/" + inp + ".pcap")
         break
     except FileNotFoundError:
+        print("error")
         continue
 
-print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | TFTP | ICMP | ARP")
+print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | SSH | TFTP | ICMP | ARP")
 inp2 = input("Zadaj filter: ").upper()
 
 # Check the user's input and perform corresponding analysis.
 if inp2 == "ALL":
     uloha1_all(pcap)
     yaml_create(data, "result-all.yaml")
-elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTROL" or inp2 == "FTP-DATA":
+elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTROL" or inp2 == "FTP-DATA" or inp2 == "SSH":
     uloha4_tcp(pcap, dict_search(constants['tcp_ports'], inp2))
     yaml_create(data, "result-" + inp2.lower() + ".yaml")
 elif inp2 == "TFTP":
