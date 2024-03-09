@@ -584,12 +584,11 @@ list_of_complete_comms = []
 pcap = None  # Inicializing variables
 
 constants = database()  # Load constants from a database.
-print("Packet analyzer\nAuthor: Lukáš Štefančík")
 
 while True:
     inp = input("Zadaj pcap na rozbor: ")
     try:
-        pcap = rdpcap("pcap/" + inp + ".pcap")
+        pcap = rdpcap("pcap/" + inp)
         break
     except FileNotFoundError:
         print("error")
@@ -599,20 +598,26 @@ print("ALL | HTTP | HTTPS | TELNET | FTP-CONTROL | FTP-DATA | SSH | TFTP | ICMP 
 inp2 = input("Zadaj filter: ").upper()
 
 # Check the user's input and perform corresponding analysis.
-if inp2 == "ALL":
-    uloha1_all(pcap)
-    yaml_create(data, "result-all.yaml")
-elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTROL" or inp2 == "FTP-DATA" or inp2 == "SSH":
-    uloha4_tcp(pcap, dict_search(constants['tcp_ports'], inp2))
-    yaml_create(data, "result-" + inp2.lower() + ".yaml")
-elif inp2 == "TFTP":
-    uloha4_tftp(pcap, dict_search(constants['tcp_ports'], inp2))
-    yaml_create(data, "result-tftp.yaml")
-elif inp2 == "ICMP":
-    uloha4_icmp(pcap)
-    yaml_create(data, "result-icmp.yaml")
-elif inp2 == "ARP":
-    uloha4_arp(pcap)
-    yaml_create(data, "result-arp.yaml")
-else:
-    print("Invalid input")
+while True:
+    if inp2 == "ALL":
+        uloha1_all(pcap)
+        yaml_create(data, "result-all.yaml")
+        break
+    elif inp2 == "HTTP" or inp2 == "HTTPS" or inp2 == "TELNET" or inp2 == "FTP-CONTROL" or inp2 == "FTP-DATA" or inp2 == "SSH":
+        uloha4_tcp(pcap, dict_search(constants['tcp_ports'], inp2))
+        yaml_create(data, "result-" + inp2.lower() + ".yaml")
+        break
+    elif inp2 == "TFTP":
+        uloha4_tftp(pcap, dict_search(constants['tcp_ports'], inp2))
+        yaml_create(data, "result-tftp.yaml")
+        break
+    elif inp2 == "ICMP":
+        uloha4_icmp(pcap)
+        yaml_create(data, "result-icmp.yaml")
+        break
+    elif inp2 == "ARP":
+        uloha4_arp(pcap)
+        yaml_create(data, "result-arp.yaml")
+        break
+    else:
+        print("Invalid input")
