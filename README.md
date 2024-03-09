@@ -4,8 +4,8 @@
 
 ## Opis projektu:
 Projekt je zameraný na analýzu sieťovej komunikácie uloženú v ***pcap*** súboroch.
-Projekt dokáže rozpoznať rôzne dnes používané protokoly na všetkých vrstvách.
-Obsahuje taktiež logiku na zoskupovanie kompletných a nekompletných komunikácií.
+Projekt dokáže rozpoznať rôzne dnes používané protokoly na všetkých vrstvách a obsahuje logiku na zoskupovanie kompletných a nekompletných komunikácií.
+Obsahuje taktiež príklady komunikácíí na ktorých je možné program testovať.
 
 ## Spustenie projektu
 * Pomocou `main.py`
